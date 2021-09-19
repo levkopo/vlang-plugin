@@ -1,0 +1,41 @@
+<idea-plugin>
+    <id>ru.levkopo.vlang-plugin</id>
+    <name>V Language Support</name>
+    <vendor url="https://levkopo.ru">levkopo</vendor>
+
+    <description><![CDATA[
+    V Language support for IDEA
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <internalFileTemplate name="V File"/>
+        <fileType name="V Language File" implementationClass="ru.levkopo.vlangPlugin.file.VFileType"
+                  fieldName="INSTANCE" language="vlang" extensions="v"/>
+        <directoryProjectGenerator implementation="ru.levkopo.vlangPlugin.pw.VProjectGenerator"/>
+        <lang.parserDefinition language="vlang"
+                               implementationClass="ru.levkopo.vlangPlugin.parser.VLangParserDefinition"/>
+        <lang.syntaxHighlighterFactory language="vlang"
+                  implementationClass="ru.levkopo.vlangPlugin.parser.VLangSyntaxHighlighterFactory"/>
+        <colorSettingsPage implementation="ru.levkopo.vlangPlugin.settings.VLangColorSettingsPage"/>
+        <annotator language="vlang" implementationClass="ru.levkopo.vlangPlugin.annotators.VLangAnnotator"/>
+        <moduleType id="v_lang" implementationClass="ru.levkopo.vlangPlugin.pw.NewProjectWizardModuleType"/>
+        <moduleBuilder builderClass="ru.levkopo.vlangPlugin.pw.NewProjectWizardModuleBuilder"/>
+    </extensions>
+
+    <actions>
+        <action
+                id="ru.levkopo.vlangPlugin.actions.NewVProject"
+                icon="ru.levkopo.vlangPlugin.data.Icons.V_FILE"
+                class="ru.levkopo.vlangPlugin.actions.NewVProject"
+                text="New VLang Project"
+                description="Create a new VLang project">
+        </action>
+
+        <!--action id="VLang.NewFile" class="NewFileVAction"
+                text="VLang File" description="Create new VLang file">
+            <add-to-group group-id="NewGroup" anchor="before" relative-to-action="NewFromTemplate"/>
+        </action-->
+    </actions>
+</idea-plugin>

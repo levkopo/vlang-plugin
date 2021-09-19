@@ -1,0 +1,215 @@
+{
+  parserClass="ru.levkopo.vlangPlugin.parser.VLangParser"
+
+  extends="com.intellij.extapi.psi.ASTWrapperPsiElement"
+
+  psiClassPrefix="VLang"
+  psiImplClassSuffix="Impl"
+  psiPackage="ru.levkopo.vlangPlugin.parser.psi"
+  psiImplPackage="ru.levkopo.vlangPlugin.parser.psi.impl"
+
+  elementTypeHolderClass="ru.levkopo.vlangPlugin.parser.psi.VLangTypes"
+  elementTypeClass="ru.levkopo.vlangPlugin.parser.psi.VElementType"
+  tokenTypeClass="ru.levkopo.vlangPlugin.parser.psi.VTokenType"
+
+  extends(".*expr") = expr
+}
+
+file ::= moduleName? (COMMENT|importModule)* (CH|atomicFileIF)* (
+                            typeItem      |
+                            constants     |
+                            enumItem      |
+                            interfaceItem |
+                            unionItem     |
+                            structItem    |
+                            fnItem        |
+                            fileGlobal
+                            )*;
+
+fileGlobal ::= GLOBAL OPEN structItem_* CLOSE
+
+
+type ::= FN OPEN (type ((COMMA type)*)?)? CLOSE type |
+         OPEN_BRACKET CLOSE_BRACKET type             |
+         MAP OPEN_BRACKET type CLOSE_BRACKET type    |
+         OPTION type?                                |
+         AND type                                    |
+         ID (DOT ID)*;
+
+moduleName ::= MODULE ID;
+importModule ::= IMPORT ID ((DOT ID)*)? (AS ID)? (OPEN_BRACE (ID ((COMMA ID)*)?)? CLOSE_BRACE)?;
+
+private constants ::= CONST (OPEN constItem* CLOSE)|constItem;
+constItem ::= ID ASSIGN value_expr;
+
+interfaceItem ::= INTERFACE OPEN_BRACE (ID OPEN (type (COMMA type)*)? type?|ID type) CLOSE_BRACE
+typeItem ::= TYPE_KW ID ASSIGN expr
+enumItem ::= attribute? ENUM ID OPEN_BRACE ID* CLOSE_BRACE
+unionItem ::= UNION ID OPEN_BRACE structItem_* CLOSE_BRACE;
+structItem ::= attribute? PUB? STRUCT ID OPEN_BRACE (structItem_|ID)* (
+                (GLOBAL|PUB? MUTABLE?) COLON structItem_*)* CLOSE_BRACE;
+fnItem ::= attribute? PUB? FN (OPEN arg CLOSE)? ID OPEN (arg ((COMMA arg)*)?)? CLOSE type?
+    (OPEN_BRACE statement* CLOSE_BRACE)?;
+arg ::= MUTABLE? ID type
+
+structItem_ ::= ID (type (ASSIGN expr)?|ASSIGN expr) attribute?
+attribute ::= OPEN_BRACKET IF? (UNSAFE|REQUESTED|ID) (COLON value_expr)? CLOSE_BRACKET
+
+atomicIF ::= ATOMIC IF expr OPEN_BRACE statement* CLOSE_BRACE (ATOMIC ELSE OPEN_BRACE statement* CLOSE_BRACE)
+atomicFileIF ::= ATOMIC IF expr OPEN_BRACE CH* CLOSE_BRACE (ATOMIC ELSE OPEN_BRACE CH* CLOSE_BRACE)
+
+statement ::= if_statement        |
+              atomicIF            |
+              continue_statement  |
+              break_statement     |
+              label_statement     |
+              goto_statement      |
+              go_statement        |
+              for_statement       |
+              match_statement     |
+              defer_statement     |
+              Return_statement    |
+              unaryGroup          |
+              expr
+
+continue_statement ::= CONTINUE
+break_statement ::= BREAK
+label_statement ::= ID COLON
+goto_statement ::= GOTO ID
+if_statement ::= IF expr OPEN_BRACE statement* CLOSE_BRACE
+    (ELSE (if_statement|OPEN_BRACE statement* CLOSE_BRACE))?;
+defer_statement ::= DEFER OPEN_BRACE statement* CLOSE_BRACE
+Return_statement ::= RETURN expr?;
+go_statement ::= GO expr
+match_statement ::= MATCH expr OPEN_BRACE (matchStmtItem)* elseMatchStmtItem CLOSE_BRACE
+elseMatchStmtItem ::= ELSE OPEN_BRACE statement* CLOSE_BRACE
+matchStmtItem ::= ID OPEN_BRACE statement* CLOSE_BRACE
+for_statement ::= FOR (expr SEMICOLON expr SEMICOLON expr|expr)?
+        OPEN_BRACE statement* CLOSE_BRACE
+
+expr ::=
+            or_expr                 |                 // 1 level
+                and_expr                |             // 2 level
+                    equals_expr             |         // 3 level
+                    not_equals_expr         |
+                    less_equals_expr        |
+                    less_expr               |
+                    grande_equals_expr      |
+                    grande_expr             |
+                        assign_expr                 | // 4 level
+                        plus_assign_expr            |
+                        minus_assign_expr           |
+                        mul_assign_expr             |
+                        div_assign_expr             |
+                        remainder_assign_expr       |
+                        and_assign_expr             |
+                        or_assign_expr              |
+                        xor_assign_expr             |
+                        left_shift_assign_expr      |
+                        right_shift_assign_expr     |
+                                plus_expr               |     // 5 level
+                                minus_expr              |
+                                orb_expr                |
+                                xor_expr                |
+                                    mul_expr                | // 6 level
+                                    div_expr                |
+                                    remainder_expr          |
+                                    left_shift_expr         |
+                                    right_shift_expr        |
+                                    andb_expr               |
+            other  |
+            primary;
+
+private unaryGroup ::= unaryPlus | unaryMinus
+private other ::= range_expr;
+
+unaryMinus ::= expr MINUS MINUS
+unaryPlus ::= expr PLUS PLUS
+div_expr ::= expr DIV expr
+remainder_expr ::= expr REMAINDER expr
+mul_expr ::= expr MUL expr
+minus_expr ::= expr MINUS expr
+plus_expr ::= expr PLUS expr
+paren_expr ::= OPEN expr CLOSE
+range_expr ::= expr DOT DOT expr
+equals_expr ::= expr EQUALS expr
+not_equals_expr ::= expr NOT_EQUALS expr
+less_expr ::= expr LESS expr
+less_equals_expr ::= expr LESS_EQUALS expr
+grande_expr ::= expr GRANDE expr
+grande_equals_expr ::= expr GRANDE_EQUALS expr
+and_expr ::= expr AND AND expr
+or_expr ::= expr OR OR expr
+orb_expr ::= expr OR expr
+xor_expr ::= expr XOR expr
+not_expr ::= NOT expr
+left_shift_expr ::= expr LEFT_SHIFT expr
+right_shift_expr ::= expr RIGHT_SHIFT expr
+andb_expr ::= expr AND expr
+
+/*** PRIMITIVE EXPRESSIONS ***/
+private primary ::= paren_expr           |
+                    map_expr             |
+                    map_type_expr        |
+                    initialize_expr      |
+                    callFn_expr          |
+                    structureCreate_expr |
+                    link_expr            |
+                    links_expr           |
+
+                    match_expr           |
+                    if_expr              |
+                    fn_expr              |
+                    array_type_expr      |
+                    array_expr           |
+                    option_ignore_expr   |
+                    or_optional_expr     |
+                    in_expr              |
+                    not_expr             |
+                    access_expr          |
+                    this_access_expr     |
+                    heap_expr            |
+                    value_expr;
+
+
+fn_expr ::= FN ID OPEN (arg ((COMMA arg)*)?)? CLOSE type? OPEN_BRACE statement* CLOSE_BRACE;
+if_expr ::= IF expr OPEN_BRACE expr* CLOSE_BRACE (ELSE (if_expr|OPEN_BRACE expr* CLOSE_BRACE))?;
+
+array_expr ::= OPEN_BRACKET (expr ((COMMA expr)*)?)? CLOSE_BRACKET;
+array_type_expr ::= OPEN_BRACKET NUMBER? CLOSE_BRACKET type OPEN_BRACE (expr ((COMMA expr)*)?)? CLOSE_BRACE;
+
+structureCreate_expr ::= ID OPEN_BRACE (structureCreateItem*)? CLOSE_BRACE;
+structureCreateItem ::= (ID COLON)? expr
+
+map_expr ::= MAP OPEN_BRACE (mapItem*)? CLOSE_BRACE
+map_type_expr ::= MAP OPEN_BRACKET type CLOSE_BRACKET type OPEN_BRACE (mapItem*)? CLOSE_BRACE
+mapItem ::= value_expr COLON expr
+
+match_expr ::= MATCH expr OPEN_BRACE (matchItem)* elseMatchItem CLOSE_BRACE
+elseMatchItem ::= ELSE OPEN_BRACE expr* CLOSE_BRACE
+matchItem ::= expr OPEN_BRACE expr* CLOSE_BRACE
+
+heap_expr ::= AND expr;
+in_expr ::= expr NOT? IN expr
+initialize_expr ::= MUTABLE? ID INITIAL expr;
+callFn_expr ::= ID OPEN callFn_struct (expr (COMMA expr)*)? CLOSE;
+callFn_struct ::= (ID COLON expr)*;
+
+assign_expr ::= expr ASSIGN expr
+plus_assign_expr ::= expr PLUS ASSIGN expr
+minus_assign_expr ::= expr MINUS ASSIGN expr
+mul_assign_expr ::= expr MUL ASSIGN expr
+div_assign_expr ::= expr DIV ASSIGN expr
+remainder_assign_expr ::= expr REMAINDER ASSIGN expr
+and_assign_expr ::= expr AND ASSIGN expr
+or_assign_expr ::= expr OR ASSIGN expr
+xor_assign_expr ::= expr XOR ASSIGN expr
+this_access_expr ::= DOT expr
+access_expr ::= expr DOT expr
+left_shift_assign_expr ::= expr LEFT_SHIFT ASSIGN expr
+right_shift_assign_expr ::= expr RIGHT_SHIFT ASSIGN expr
+links_expr ::= link_expr (COMMA link_expr)*
+link_expr ::= ID
+value_expr ::= NUMBER|FLOAT|STRING|CHAR|BOOL|NONE;
+option_ignore_expr ::= expr OPTION
+or_optional_expr ::= expr OR OPEN_BRACE statement* CLOSE_BRACKET
